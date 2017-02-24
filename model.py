@@ -11,29 +11,44 @@ class Model():
             args.batch_size = 1
             args.seq_length = 1
 
-        if args.model == 'rnn':
-            cell_fn = rnn.BasicRNNCell
-        elif args.model == 'gru':
-            cell_fn = rnn.GRUCell
-        elif args.model == 'lstm':
-            cell_fn = rnn.BasicLSTMCell
-        else:
-            raise Exception("model type not supported: {}".format(args.model))
+#        if args.model == 'rnn':
+#            cell_fn = rnn.BasicRNNCell
+#        elif args.model == 'gru':
+#            cell_fn = rnn.GRUCell
+#        elif args.model == 'lstm':
+#            cell_fn = rnn.BasicLSTMCell
+#        else:
+#            raise Exception("model type not supported: {}".format(args.model))
+
+        # only LSTM supported right now due to the state handling
+        cell_fn = rnn.BasicLSTMCell 
 
         cell = cell_fn(args.rnn_size, state_is_tuple=True)
 
         self.cell = cell = rnn.MultiRNNCell([cell] * args.num_layers, state_is_tuple=True)
 
-        self.input_data = tf.placeholder(tf.int32, [args.batch_size, args.seq_length])
-        self.targets = tf.placeholder(tf.int32, [args.batch_size, args.seq_length])
-        self.initial_state = cell.zero_state(args.batch_size, tf.float32)
+        self.data_in = tf.placeholder(tf.int32, [args.batch_size, args.seq_length], name='data_in')
+        self.targets = tf.placeholder(tf.int32, [args.batch_size, args.seq_length], name='targets')
+
+        zero_state = cell.zero_state(args.batch_size, tf.float32)
+        self.state_in = tf.identity(zero_state, name='state_in')         
+         
+        # based on https://medium.com/@erikhallstrm/using-the-tensorflow-multilayered-lstm-api-f6e7da7bbe40#.zhg4zwteg
+        #self.state_in = tf.constant(np.zeros((args.num_layers, 2, args.batch_size, args.rnn_size)), dtype=tf.float32, name='state_in')
+        state_per_layer_list = tf.unstack(self.state_in, axis=0)
+        self.state_in_tuple = tuple(
+            # TODO make this not hard-coded to LSTM
+            [tf.contrib.rnn.LSTMStateTuple(state_per_layer_list[idx][0], state_per_layer_list[idx][1])
+            for idx in range(args.num_layers)]
+        )
+
 
         with tf.variable_scope('rnnlm'):
             softmax_w = tf.get_variable("softmax_w", [args.rnn_size, args.vocab_size])
             softmax_b = tf.get_variable("softmax_b", [args.vocab_size])
             with tf.device("/cpu:0"):
                 embedding = tf.get_variable("embedding", [args.vocab_size, args.rnn_size])
-                inputs = tf.split(tf.nn.embedding_lookup(embedding, self.input_data), args.seq_length, 1)
+                inputs = tf.split(tf.nn.embedding_lookup(embedding, self.data_in), args.seq_length, 1)
                 inputs = [tf.squeeze(input_, [1]) for input_ in inputs]
 
         def loop(prev, _):
@@ -41,33 +56,39 @@ class Model():
             prev_symbol = tf.stop_gradient(tf.argmax(prev, 1))
             return tf.nn.embedding_lookup(embedding, prev_symbol)
 
-        outputs, last_state = legacy_seq2seq.rnn_decoder(inputs, self.initial_state, cell, loop_function=loop if infer else None, scope='rnnlm')
+        outputs, state_out_tuple = legacy_seq2seq.rnn_decoder(inputs, self.state_in_tuple, cell, loop_function=loop if infer else None)#), scope='rnnlm')
         output = tf.reshape(tf.concat(outputs, 1), [-1, args.rnn_size])
+        self.state_out = tf.identity(state_out_tuple, name='state_out')
         self.logits = tf.matmul(output, softmax_w) + softmax_b
-        self.probs = tf.nn.softmax(self.logits)
-        loss = legacy_seq2seq.sequence_loss_by_example([self.logits],
-                [tf.reshape(self.targets, [-1])],
-                [tf.ones([args.batch_size * args.seq_length])],
-                args.vocab_size)
-        self.cost = tf.reduce_sum(loss) / args.batch_size / args.seq_length
+        self.data_out = tf.nn.softmax(self.logits, name='data_out') # probabilities
+            
         
-        tf.summary.scalar('loss', self.cost)
+        with tf.name_scope('training'):
+            loss = legacy_seq2seq.sequence_loss_by_example([self.logits],
+                    [tf.reshape(self.targets, [-1])],
+                    [tf.ones([args.batch_size * args.seq_length])],
+                    args.vocab_size)
+            self.cost = tf.reduce_sum(loss) / args.batch_size / args.seq_length
+            
+            tf.summary.scalar('loss', self.cost)
         
-        self.final_state = last_state
-        self.lr = tf.Variable(0.0, trainable=False)
-        tvars = tf.trainable_variables()
-        grads, _ = tf.clip_by_global_norm(tf.gradients(self.cost, tvars),
-                args.grad_clip)
-        optimizer = tf.train.AdamOptimizer(self.lr)
-        self.train_op = optimizer.apply_gradients(zip(grads, tvars))
+        
+            self.lr = tf.Variable(0.0, trainable=False)
+            tvars = tf.trainable_variables()
+            grads, _ = tf.clip_by_global_norm(tf.gradients(self.cost, tvars),
+                    args.grad_clip)
+            optimizer = tf.train.AdamOptimizer(self.lr)
+            self.train_op = optimizer.apply_gradients(zip(grads, tvars))
+
 
     def sample(self, sess, chars, vocab, num=200, prime='The ', sampling_type=1):
-        state = sess.run(self.cell.zero_state(1, tf.float32))
+        #state = sess.run(self.cell.zero_state(1, tf.float32))
+        state = sess.run(self.state_in)
         for char in prime[:-1]:
             x = np.zeros((1, 1))
             x[0, 0] = vocab[char]
-            feed = {self.input_data: x, self.initial_state:state}
-            [state] = sess.run([self.final_state], feed)
+            feed = {self.data_in: x, self.state_in:state}
+            [state] = sess.run([self.state_out], feed)
 
         def weighted_pick(weights):
             t = np.cumsum(weights)
@@ -79,8 +100,8 @@ class Model():
         for n in range(num):
             x = np.zeros((1, 1))
             x[0, 0] = vocab[char]
-            feed = {self.input_data: x, self.initial_state:state}
-            [probs, state] = sess.run([self.probs, self.final_state], feed)
+            feed = {self.data_in: x, self.state_in:state}
+            [probs, state] = sess.run([self.data_out, self.state_out], feed)
             p = probs[0]
 
             if sampling_type == 0:
