@@ -26,7 +26,7 @@ def main():
                        help='prime text')
     parser.add_argument('--sample', type=int, default=1,
                        help='0 to use max at each timestep, 1 to sample at each timestep, 2 to sample on spaces')
-    parser.add_argument('--model_dir', type=str, default='./frozen',
+    parser.add_argument('--model_dir', type=str, default='./save',
                        help='path to frozen graph pb file')
 
     args = parser.parse_args()
