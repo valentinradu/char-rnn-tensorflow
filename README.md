@@ -4,7 +4,7 @@ TensorFlow used to manage RNN states with a single concatenated tensor (for all 
 
 Also, after training, run:
 
-[sample.py](https://github.com/memo/char-rnn-tensorflow/blob/master/save_graph.py) with the `--freeze_graph` argument to prune, freeze and save the graph as a binary protobuf to be loaded in C++ (removing unnessecary nodes used in training, and replacing variables with consts). It also saves the character-index map as a text file.
+[sample.py](https://github.com/memo/char-rnn-tensorflow/blob/master/sample.py) with the `--freeze_graph` argument to prune, freeze and save the graph as a binary protobuf to be loaded in C++ (removing unnessecary nodes used in training, and replacing variables with consts). It also saves the character-index map as a text file.
 
 [sample_frozen.py](https://github.com/memo/char-rnn-tensorflow/blob/master/test_frozen.py) demonstrates inference with the frozen graph from python. It also works in [C++/openFrameworks](https://github.com/memo/ofxMSATensorFlow/blob/master/example-char-rnn/src/example-char-rnn.cpp). 
 
