@@ -1,8 +1,12 @@
-This is a fork of https://github.com/sherjilozair/char-rnn-tensorflow modified so I can use the trained model easily in C++.
+This is a fork of https://github.com/sherjilozair/char-rnn-tensorflow modified so the trained models can easily be used in other environments (e.g. C++, [openFrameworks](http://openframeworks.cc/), [ofxMSATensorFlow](https://github.com/memo/ofxMSATensorFlow) etc.)
 
-TensorFlow used to manage RNN states with a single concatenated tensor (for all cells, both hidden and LSTM cell state). But that behaviour is being deprecated in favour of using a tuple of tensors (for each layer, cell, batch size etc). This makes it more complicated to manage from C++. In this version, I add nodes to stack and unstack all states to and from a single tensor which I can easily reference from C++. Also the graph is a bit more organised so other key nodes can easily be referenced by name.
+General problems and motivations for the mods:
 
-Also, after training, run:
+* The default format that trained tensorflow models are saved in are checkpoint files, which don't contain architecture information, only parameter values, so loading them alone in C++ wouldn't be enough (AFAIK there is no C++ loader for ckpt files anyway).
+* The file format which contains architecture information and can be loaded in C++ is protobuf (.pb), however saving a .pb from tensorflow saves the *untrained* model only, i.e. the trained model parameters are *not* saved in this file. There is a [utility](https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/tools/freeze_graph.py) which prunes and 'freezes' graphs (replaces variables with consts of the same value), however...
+* ... when we use *loaded* graphs, we need to access ops to feed and fetch by name. Most python tensorflow examples however, build the graph in python, save references to ops in variables, then during inference they access ops to feed and fetch via those variables, so the graphs often aren't setup to be easily accessible by name. 
+
+After training, run:
 
 [sample.py](https://github.com/memo/char-rnn-tensorflow/blob/master/sample.py) with the `--freeze_graph` argument to prune, freeze and save the graph as a binary protobuf to be loaded in C++ (removing unnessecary nodes used in training, and replacing variables with consts). It also saves the character-index map as a text file.
 

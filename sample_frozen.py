@@ -4,7 +4,10 @@ Created on Thu Feb 23 20:25:16 2017
 
 @author: memo
 
-tests frozen graph
+demonstrates inference with frozen graph def
+same as sample.py, but:
+- instead of loading model + checkpoint, loads frozen graph
+- instead of calling model.sample() function, uses own sample() function with named ops
 """
 
 
@@ -42,6 +45,7 @@ def main():
             sess.graph.as_default()
             tf.import_graph_def(graph_def, name='')        
         
+        # don't  call model.sample(), instead call sample() function defined below
         print(sample(sess, chars, vocab, args.n, args.prime, args.sample))
 
 
