@@ -15,6 +15,7 @@ from __future__ import print_function
 import numpy as np
 import tensorflow as tf
 from tensorflow.python.platform import gfile
+from tensorflow.python.lib.io import file_io
 
 import argparse
 import os
@@ -34,12 +35,12 @@ def main():
 
     args = parser.parse_args()
 
-    with open(os.path.join(args.model_dir, 'chars_vocab.pkl'), 'rb') as f:
+    with file_io.FileIO(os.path.join(args.model_dir, 'chars_vocab.pkl'), 'r') as f:
         chars, vocab = cPickle.load(f)
         
     with tf.Session() as sess:
         # load frozen graph
-        with gfile.FastGFile(os.path.join(args.model_dir, 'graph_frz.pb'),'rb') as f:
+        with gfile.FastGFile(os.path.join(args.model_dir, 'graph_frz.pb'),'r') as f:
             graph_def = tf.GraphDef()
             graph_def.ParseFromString(f.read())
             sess.graph.as_default()

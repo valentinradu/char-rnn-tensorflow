@@ -1,6 +1,7 @@
 from __future__ import print_function
 import numpy as np
 import tensorflow as tf
+from tensorflow.python.lib.io import file_io
 
 import argparse
 import time
@@ -39,13 +40,13 @@ def freeze_and_save_graph(sess, folder, out_nodes, as_text=False):
     
 
 def sample(args):
-    with open(os.path.join(args.save_dir, 'config.pkl'), 'rb') as f:
+    with file_io.FileIO(os.path.join(args.save_dir, 'config.pkl'), 'r') as f:
         saved_args = cPickle.load(f)
-    with open(os.path.join(args.save_dir, 'chars_vocab.pkl'), 'rb') as f:
+    with file_io.FileIO(os.path.join(args.save_dir, 'chars_vocab.pkl'), 'r') as f:
         chars, vocab = cPickle.load(f)
         
     # save character <-> index map as text file for easy loading in other apps    
-    with open(os.path.join(args.save_dir, 'chars.txt'), 'w') as f:
+    with file_io.FileIO(os.path.join(args.save_dir, 'chars.txt'), 'w') as f:
         for c in chars:
             f.write("%s\n" % ord(c))
 
