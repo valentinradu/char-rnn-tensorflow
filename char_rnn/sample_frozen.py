@@ -30,17 +30,17 @@ def main():
                        help='prime text')
     parser.add_argument('--sample', type=int, default=1,
                        help='0 to use max at each timestep, 1 to sample at each timestep, 2 to sample on spaces')
-    parser.add_argument('--model_dir', type=str, default='./save',
+    parser.add_argument('--save_dir', type=str, default='./save',
                        help='path to frozen graph pb file')
 
     args = parser.parse_args()
 
-    with file_io.FileIO(os.path.join(args.model_dir, 'chars_vocab.pkl'), 'r') as f:
+    with file_io.FileIO(os.path.join(args.save_dir, 'chars_vocab.pkl'), 'r') as f:
         chars, vocab = cPickle.load(f)
         
     with tf.Session() as sess:
         # load frozen graph
-        with gfile.FastGFile(os.path.join(args.model_dir, 'graph_frz.pb'),'r') as f:
+        with gfile.FastGFile(os.path.join(args.save_dir, 'graph_frz.pb'),'r') as f:
             graph_def = tf.GraphDef()
             graph_def.ParseFromString(f.read())
             sess.graph.as_default()

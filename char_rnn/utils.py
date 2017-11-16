@@ -36,7 +36,8 @@ class TextLoader():
         with file_io.FileIO(vocab_file, 'w') as f:
             cPickle.dump(self.chars, f)
         self.tensor = np.array(list(map(self.vocab.get, data)))
-        np.save(tensor_file, self.tensor)
+        with file_io.FileIO(tensor_file, "w") as f:
+            np.save(f, self.tensor)
 
     def load_preprocessed(self, vocab_file, tensor_file):
         with file_io.FileIO(vocab_file, 'r') as f:

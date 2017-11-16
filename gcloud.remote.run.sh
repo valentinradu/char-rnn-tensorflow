@@ -12,10 +12,10 @@ gcloud ml-engine jobs submit training $JOB_NAME\
     --config cloudml-gpu.yaml \
     -- \
     --data_dir gs://$BUCKET_NAME/data_test \
-    --save_dir gs://$BUCKET_NAME/save/ \
+    --save_dir gs://$BUCKET_NAME/save \
     --batch_size 50 \
     --seq_length 50 \
     --save_every 5000 \
     --learning_rate 0.008 \
-    --num_epochs 10
+    --num_epochs 5
     
