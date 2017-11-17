@@ -17,5 +17,5 @@ gcloud ml-engine jobs submit training $JOB_NAME\
     --seq_length 50 \
     --save_every 5000 \
     --learning_rate 0.008 \
-    --num_epochs 5
+    --num_epochs 1
     
